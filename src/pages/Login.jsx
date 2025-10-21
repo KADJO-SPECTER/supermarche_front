@@ -1,21 +1,35 @@
-import { useState } from 'react'
+// pages/Login.jsx
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import  {useAuth}  from '../contexts/useAuth';
 
-const Login = ({ onLogin }) => {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+const Login = () => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const { login } = useAuth();
+  const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    // Ici, vous ajouterez votre logique d'authentification
-    onLogin()
-  }
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      await login(email, password);
+      navigate('/dashboard');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Erreur de connexion');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#6FCF97] py-12 px-4 sm:px-6 lg:px-8 w-screen">
       <div className="max-w-md w-full">
-        {/* Carte principale */}
-        <div className="bg-white  p-8 space-y-8">
-          {/* En-tête */}
+        <div className="bg-white p-8 space-y-8">
           <div className="text-center">
             <h2 className="mt-6 text-3xl font-bold text-[#40514E]">
               ShopSync
@@ -25,8 +39,13 @@ const Login = ({ onLogin }) => {
             </p>
           </div>
 
-          {/* Formulaire */}
           <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+            {error && (
+              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+                {error}
+              </div>
+            )}
+
             <div className="space-y-4">
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
@@ -36,9 +55,8 @@ const Login = ({ onLogin }) => {
                   id="email"
                   name="email"
                   type="email"
-                  autoComplete="email"
                   required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition duration-200"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   placeholder="votre@email.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -53,9 +71,8 @@ const Login = ({ onLogin }) => {
                   id="password"
                   name="password"
                   type="password"
-                  autoComplete="current-password"
                   required
-                  className="w-full px-4 border-none py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition duration-200"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   placeholder="Votre mot de passe"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -63,18 +80,17 @@ const Login = ({ onLogin }) => {
               </div>
             </div>
 
-            {/* Bouton de connexion */}
             <div>
               <button
                 type="submit"
-                className="group relative w-full bg-[#40514E] flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-whit focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#40514E] transition duration-200"
+                disabled={loading}
+                className="group relative w-full bg-[#40514E] flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white hover:bg-[#2d3a38] disabled:opacity-50"
               >
-                Se connecter
+                {loading ? 'Connexion...' : 'Se connecter'}
               </button>
             </div>
           </form>
 
-          {/* Pied de page */}
           <div className="text-center pt-4 border-t border-gray-200">
             <p className="text-xs text-gray-500">
               © 2025 ShopSync. Tous droits réservés.
@@ -83,7 +99,7 @@ const Login = ({ onLogin }) => {
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default Login
+export default Login;

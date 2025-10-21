@@ -1,22 +1,22 @@
-// src/contexts/AuthContext.jsx
+// contexts/AuthContext.jsx
 import { createContext, useState, useEffect } from 'react';
-import AuthService from '../services/authService';
+import { AuthService } from '../services/authService';
 
-const AuthContext = createContext(null);
+export const AuthContext = createContext(null);
 
-// Provider
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Vérifier si l'utilisateur est authentifié au chargement
     const initAuth = async () => {
       if (AuthService.isAuthenticated()) {
         try {
           const userData = await AuthService.getCurrentUser();
           setUser(userData);
         } catch (error) {
-          console.log(error);
+          console.error("Erreur lors de la récupération de l'utilisateur :", error);
           AuthService.logout();
         }
       }
@@ -42,4 +42,6 @@ export const AuthProvider = ({ children }) => {
     </AuthContext.Provider>
   );
 };
+
+
 
