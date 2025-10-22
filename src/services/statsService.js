@@ -7,6 +7,7 @@ export const statsService = {
     const response = await api.get('/sales/statistics/', {
       params: { days },
     });
+    console.log('Statistiques des ventes reçues:', response);
     return response.data;
   },
 
@@ -26,7 +27,7 @@ export const statsService = {
   getDashboardStats: async () => {
     try {
       // Récupérer les statistiques des 30 derniers jours
-      const salesStats = await this.getSalesStatistics(30);
+      const salesStats = await statsService.getSalesStatistics(30);
       
       return {
         total_revenue: salesStats.total_revenue || 0,

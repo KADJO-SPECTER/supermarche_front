@@ -64,4 +64,8 @@ export const userService = {
     });
     return response.data;
   },
+  getAvailableAuthorities: async () => {
+    const response = await api.get('/authorities/');
+    return response.data;
+  }
 };

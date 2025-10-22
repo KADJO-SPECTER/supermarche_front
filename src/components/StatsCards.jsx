@@ -21,6 +21,8 @@ const StatsCards = () => {
       try {
         setLoading(true);
         const data = await statsService.getDashboardStats();
+
+        // console.log('Données des statistiques reçues:', data);
         
         setStats({
           total_revenue: `${(data.total_revenue / 1000).toFixed(0)}k`,

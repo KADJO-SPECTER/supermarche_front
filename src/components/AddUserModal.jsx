@@ -1,134 +1,203 @@
-import { useState, useEffect } from 'react'
-import Modal from './Modal'
+// components/AddUserModal.jsx
+import { useState, useEffect } from 'react';
+import { MdClose } from 'react-icons/md';
 
-const AddUserModal = ({ isOpen, onClose, onAddUser, initialData = null }) => {
-  const [userData, setUserData] = useState({
-    nom: '',
+const AddUserModal = ({ isOpen, onClose, onAddUser, initialData, authorities }) => {
+  const [formData, setFormData] = useState({
     email: '',
-    telephone: '',
-    role: 'Vendeur',
-    statut: 'Actif'
-  })
+    password: '',
+    password_confirm: '',
+    authority_ids: [],
+    is_active: true,
+  });
 
   useEffect(() => {
     if (initialData) {
-      setUserData(initialData)
+      setFormData({
+        email: initialData.email || '',
+        password: '',
+        password_confirm: '',
+        authority_ids: initialData.authorities?.map(a => a.authority) || [],
+        is_active: initialData.is_active ?? true,
+      });
     } else {
-      setUserData({
-        nom: '',
+      setFormData({
         email: '',
-        telephone: '',
-        role: 'Vendeur',
-        statut: 'Actif'
-      })
+        password: '',
+        password_confirm: '',
+        authority_ids: [],
+        is_active: true,
+      });
     }
-  }, [initialData, isOpen])
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target
-    setUserData(prev => ({
-      ...prev,
-      [name]: value
-    }))
-  }
+  }, [initialData, isOpen]);
 
   const handleSubmit = (e) => {
-    e.preventDefault()
-    onAddUser(userData)
-    onClose()
-  }
+    e.preventDefault();
+
+    if (!initialData && formData.password !== formData.password_confirm) {
+      alert('Les mots de passe ne correspondent pas');
+      return;
+    }
+
+    const submitData = { ...formData };
+    
+    // Si c'est une modification et qu'il n'y a pas de nouveau mot de passe
+    if (initialData && !formData.password) {
+      delete submitData.password;
+      delete submitData.password_confirm;
+    }
+
+    onAddUser(submitData);
+  };
+
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value,
+    }));
+  };
+
+  const handleRoleToggle = (authorityId) => {
+    setFormData(prev => {
+      const newAuthorityIds = prev.authority_ids.includes(authorityId)
+        ? prev.authority_ids.filter(id => id !== authorityId)
+        : [...prev.authority_ids, authorityId];
+      
+      return {
+        ...prev,
+        authority_ids: newAuthorityIds,
+      };
+    });
+  };
+
+  if (!isOpen) return null;
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      onSubmit={handleSubmit}
-      title={initialData ? "Modifier l'utilisateur" : "Nouvel Utilisateur"}
-      submitText={initialData ? "Modifier" : "Créer l'utilisateur"}
-    >
-      <div className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Nom complet *
-          </label>
-          <input
-            type="text"
-            name="nom"
-            value={userData.nom}
-            onChange={handleInputChange}
-            required
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#40514E] focus:border-[#40514E]"
-            placeholder="Prénom Nom"
-          />
+    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 animate-fadeIn">
+      <div className="bg-white rounded-lg shadow-2xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto animate-slideUp">
+        {/* En-tête */}
+        <div className="flex justify-between items-center p-6 border-b">
+          <h2 className="text-xl font-bold text-[#40514E]">
+            {initialData ? 'Modifier l\'utilisateur' : 'Nouvel utilisateur'}
+          </h2>
+          <button 
+            onClick={onClose} 
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <MdClose className="w-6 h-6" />
+          </button>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Email *
-          </label>
-          <input
-            type="email"
-            name="email"
-            value={userData.email}
-            onChange={handleInputChange}
-            required
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#40514E] focus:border-[#40514E]"
-            placeholder="utilisateur@exemple.com"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Téléphone
-          </label>
-          <input
-            type="tel"
-            name="telephone"
-            value={userData.telephone}
-            onChange={handleInputChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#40514E] focus:border-[#40514E]"
-            placeholder="+225 00 00 00 00"
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
+        {/* Formulaire */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {/* Email */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Rôle *
+              Email *
             </label>
-            <select
-              name="role"
-              value={userData.role}
-              onChange={handleInputChange}
+            <input
+              type="email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#40514E] focus:border-[#40514E]"
-            >
-              <option value="Vendeur">Vendeur</option>
-              <option value="Gestionnaire">Gestionnaire</option>
-              <option value="Administrateur">Administrateur</option>
-            </select>
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#40514E] focus:border-[#40514E] transition-all"
+              placeholder="utilisateur@example.com"
+            />
           </div>
 
+          {/* Mot de passe */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Statut *
+              Mot de passe {!initialData && '*'}
             </label>
-            <select
-              name="statut"
-              value={userData.statut}
-              onChange={handleInputChange}
-              required
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#40514E] focus:border-[#40514E]"
-            >
-              <option value="Actif">Actif</option>
-              <option value="Inactif">Inactif</option>
-              <option value="En attente">En attente</option>
-            </select>
+            <input
+              type="password"
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
+              required={!initialData}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#40514E] focus:border-[#40514E] transition-all"
+              placeholder={initialData ? 'Laisser vide pour ne pas changer' : 'Mot de passe'}
+            />
           </div>
-        </div>
+
+          {/* Confirmation mot de passe */}
+          {!initialData && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Confirmer le mot de passe *
+              </label>
+              <input
+                type="password"
+                name="password_confirm"
+                value={formData.password_confirm}
+                onChange={handleChange}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#40514E] focus:border-[#40514E] transition-all"
+                placeholder="Confirmer le mot de passe"
+              />
+            </div>
+          )}
+
+          {/* Rôles */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Rôles
+            </label>
+            <div className="space-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-3">
+              {authorities.map((authority) => (
+                <label key={authority.id} className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-1 rounded transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={formData.authority_ids.includes(authority.id)}
+                    onChange={() => handleRoleToggle(authority.id)}
+                    className="rounded text-[#40514E] focus:ring-[#40514E]"
+                  />
+                  <span className="text-sm text-gray-700">
+                    {authority.name} {authority.description && `- ${authority.description}`}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Statut actif */}
+          <div className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              name="is_active"
+              checked={formData.is_active}
+              onChange={handleChange}
+              className="rounded text-[#40514E] focus:ring-[#40514E]"
+            />
+            <label className="text-sm font-medium text-gray-700">
+              Compte actif
+            </label>
+          </div>
+
+          {/* Boutons */}
+          <div className="flex justify-end space-x-3 pt-4 border-t">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Annuler
+            </button>
+            <button
+              type="submit"
+              style={{backgroundColor: "#40514E"}}
+              className="px-4 py-2 text-white rounded-lg hover:bg-[#2F3E3C] transition-colors"
+            >
+              {initialData ? 'Modifier' : 'Créer'}
+            </button>
+          </div>
+        </form>
       </div>
-    </Modal>
-  )
-}
+    </div>
+  );
+};
 
-export default AddUserModal
+export default AddUserModal;

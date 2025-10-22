@@ -1,7 +1,7 @@
 // services/api.js
 import axios from 'axios';
 
-const API_BASE_URL = 'https://giant-seas-wash.loca.lt'; // À remplacer par votre URL
+const API_BASE_URL = 'https://diy-flip-horizon-fully.trycloudflare.com/'; // À remplacer par votre URL
 
 const api = axios.create({
   baseURL: `${API_BASE_URL}/api/v1`,
