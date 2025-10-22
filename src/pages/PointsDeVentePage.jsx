@@ -1,66 +1,122 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { MdEdit, MdDelete, MdAdd, MdLocationOn, MdPhone, MdEmail, MdStore, MdSearch } from 'react-icons/md'
 import AddPointDeVenteModal from '../components/AddPointDeVenteModal'
+import { storeService } from '../services/store'
 
 const PointsDeVentePage = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingPointDeVente, setEditingPointDeVente] = useState(null)
+  const [pointsDeVente, setPointsDeVente] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [data, setData] = useState({
+    count: 0,
+    next: null,
+    previous: null,
+    results: []
+  })
 
-  // Données mock pour les points de vente
-  const pointsDeVente = [
-    {
-      id: 1,
-      nom: "ESATIC",
-      adresse: "Plateau, Abidjan",
-      telephone: "+225 01 23 45 67 89",
-      email: "esatic@shopsync.com",
-      responsable: "Jean Koffi",
-      chiffreAffaire: "896.3K XOF",
-      performance: "+23%",
-      statut: "Actif"
+  useEffect(() => {
+    const loadPointsDeVenteData = async () => {
+      try {
+        const response = await storeService.getStores()
+        setData(response)
+        setPointsDeVente(response.results)
+      } catch (error) {
+        console.error("Erreur lors du chargement des données:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadPointsDeVenteData()
+  }, [])
+
+  if (loading) {
+    return <div className="p-6">Chargement...</div>
+  }
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Voulez-vous vraiment supprimer ce point de vente ?")) return
+    try {
+      await storeService.deleteStore(id)
+      // Recharger les données après suppression
+      const response = await storeService.getStores()
+      setData(response)
+      setPointsDeVente(response.results)
+    } catch (error) {
+      console.error("Erreur lors de la suppression : ", error)
+      alert("Une erreur est survenue lors de la suppression")
+    }
+  }
+
+   // Fonction pour calculer le chiffre d'affaires moyen
+  const calculateAverageRevenue = () => {
+    if (pointsDeVente.length === 0) return "0 XOF"
+    
+    const total = pointsDeVente.reduce((sum, point) => {
+      const revenue = parseFloat(point.chiffre_affaire) || 0
+      return sum + revenue
+    }, 0)
+    
+    const average = total / pointsDeVente.length
+    return formatCurrency(average)
+  }
+
+    // Fonction pour calculer la performance moyenne
+  const calculateAveragePerformance = () => {
+    if (pointsDeVente.length === 0) return "+0%"
+    
+    const total = pointsDeVente.reduce((sum, point) => {
+      // Extraire le nombre de la chaîne de performance (ex: "+23%" -> 23)
+      const performance = parseFloat(point.performance) || 0
+      return sum + performance
+    }, 0)
+    
+    const average = total / pointsDeVente.length
+    return `${average >= 0 ? '+' : ''}${average.toFixed(1)}%`
+  }
+
+   // Fonction pour formater la devise
+  const formatCurrency = (amount) => {
+    if (amount >= 1000000) {
+      return `${(amount / 1000000).toFixed(1)}M XOF`
+    } else if (amount >= 1000) {
+      return `${(amount / 1000).toFixed(1)}K XOF`
+    }
+    return `${amount.toFixed(0)} XOF`
+  }
+
+
+  // Calcul des statistiques basées sur les données réelles
+  const stats = [
+    { 
+      title: "Total Points de vente", 
+      value: data.count.toString(), 
+      change: "+0", 
+      positive: true 
     },
-    {
-      id: 2,
-      nom: "CHU de Cocody",
-      adresse: "Cocody, Abidjan",
-      telephone: "+225 07 89 12 34 56",
-      email: "chu@shopsync.com",
-      responsable: "Marie Traoré",
-      chiffreAffaire: "683.3K XOF",
-      performance: "+3.8%",
-      statut: "Actif"
+    { 
+      title: "Points actifs", 
+      value: pointsDeVente.filter(p => p.statut === 'Actif').length.toString(), 
+      change: "+0", 
+      positive: true 
     },
-    {
-      id: 3,
-      nom: "POSTE Plateau",
-      adresse: "Plateau, Abidjan",
-      telephone: "+225 05 67 89 01 23",
-      email: "poste@shopsync.com",
-      responsable: "Pierre Gnahoué",
-      chiffreAffaire: "569.3K XOF",
-      performance: "+8.2%",
-      statut: "Actif"
+    { 
+      title: "Chiffre d'affaires moyen", 
+      value: calculateAverageRevenue(), 
+      change: "+0%", 
+      positive: true 
     },
-    {
-      id: 4,
-      nom: "Yopougon",
-      adresse: "Yopougon, Abidjan",
-      telephone: "+225 01 98 76 54 32",
-      email: "yopougon@shopsync.com",
-      responsable: "Alice Bamba",
-      chiffreAffaire: "423.1K XOF",
-      performance: "-2.1%",
-      statut: "En maintenance"
+    { 
+      title: "Performance moyenne", 
+      value: calculateAveragePerformance(), 
+      change: "+0%", 
+      positive: true 
     }
   ]
 
-  const stats = [
-    { title: "Total Points de vente", value: "24", change: "+2", positive: true },
-    { title: "Points actifs", value: "22", change: "+1", positive: true },
-    { title: "Chiffre d'affaires moyen", value: "643.2K XOF", change: "+5.3%", positive: true },
-    { title: "Performance moyenne", value: "+8.2%", change: "+1.1%", positive: true }
-  ]
+ 
 
   const filteredPoints = pointsDeVente.filter(point =>
     point.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -95,11 +151,9 @@ const PointsDeVentePage = () => {
     if (editingPointDeVente) {
       // Logique de modification
       console.log('Modifier point de vente:', pointDeVenteData)
-      // Mettre à jour le point de vente dans la liste
     } else {
       // Logique d'ajout
       console.log('Nouveau point de vente:', pointDeVenteData)
-      // Ajouter le point de vente à la liste
     }
     handleCloseModal()
   }
@@ -236,7 +290,7 @@ const PointsDeVentePage = () => {
                     {point.responsable}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {point.chiffreAffaire}
+                    {formatCurrency(parseFloat(point.chiffre_affaire))}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <span className={getPerformanceColor(point.performance)}>
@@ -256,7 +310,10 @@ const PointsDeVentePage = () => {
                       >
                         <MdEdit className="w-5 h-5" />
                       </button>
-                      <button className="text-red-600 hover:text-red-900">
+                      <button 
+                        onClick={() => handleDelete(point.id)}
+                        className="text-red-600 hover:text-red-900"
+                      >
                         <MdDelete className="w-5 h-5" />
                       </button>
                     </div>
@@ -282,17 +339,17 @@ const PointsDeVentePage = () => {
         {/* Pagination */}
         <div className="mt-6 flex items-center justify-between">
           <div className="text-sm text-gray-500">
-            Affichage de <span className="font-medium">1</span> à <span className="font-medium">4</span> sur <span className="font-medium">24</span> points de vente
+            Affichage de <span className="font-medium">1</span> à <span className="font-medium">{pointsDeVente.length}</span> sur <span className="font-medium">{data.count}</span> points de vente
           </div>
           <div className="flex space-x-2">
-            <button className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-500 hover:bg-gray-50">
+            <button 
+              className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-500 hover:bg-gray-50"
+              disabled={!data.previous}
+            >
               Précédent
             </button>
             <button className="px-3 py-1 border border-[#40514E] bg-[#40514E] text-white rounded-md text-sm font-medium">
               1
-            </button>
-            <button className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-500 hover:bg-gray-50">
-              2
             </button>
             <button className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-500 hover:bg-gray-50">
               Suivant
