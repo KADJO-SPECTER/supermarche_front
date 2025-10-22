@@ -1,46 +1,116 @@
-import { useState, useEffect } from 'react'
-import Modal from './Modal'
+import { useState, useEffect } from "react";
+import Modal from "./Modal";
+import { storeService } from "../services/store";
 
-const AddPointDeVenteModal = ({ isOpen, onClose, onAddPointDeVente, initialData = null }) => {
-  const [pointDeVenteData, setPointDeVenteData] = useState({
-    nom: '',
-    adresse: '',
-    telephone: '',
-    email: '',
-    responsable: '',
-    statut: 'Actif'
-  })
 
-  // Réinitialiser les données quand le modal s'ouvre/ferme
+const AddPointDeVenteModal = ({
+  isOpen,
+  onClose,
+  onAddPointDeVente,
+  initialData = null,
+}) => {
+  const [formData, setFormData] = useState({
+    nom: "",
+    adresse: "",
+    telephone: "",
+    email: "",
+    responsable: "",
+    statut: "Actif",
+  });
+
+
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  // Réinitialiser les champs quand le modal s'ouvre ou reçoit des données
   useEffect(() => {
     if (isOpen) {
+      setError("");
+
       if (initialData) {
-        setPointDeVenteData(initialData)
+        setFormData({
+          nom: initialData.nom || "",
+          adresse: initialData.adresse || "",
+          telephone: initialData.telephone || "",
+          email: initialData.email || "",
+          responsable: initialData.responsable || "",
+          statut: initialData.statut || "Actif",
+        });
       } else {
-        setPointDeVenteData({
-          nom: '',
-          adresse: '',
-          telephone: '',
-          email: '',
-          responsable: '',
-          statut: 'Actif'
-        })
+        resetForm();
       }
     }
-  }, [isOpen, initialData])
+  }, [isOpen, initialData]);
 
+  const resetForm = () => {
+    setFormData({
+      nom: "",
+      adresse: "",
+      telephone: "",
+      email: "",
+      responsable: "",
+      statut: "Actif",
+    });
+  };
+
+  // Gérer les changements de champ
   const handleInputChange = (e) => {
-    const { name, value } = e.target
-    setPointDeVenteData(prev => ({
-      ...prev,
-      [name]: value
-    }))
-  }
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (error) setError("");
+  };
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    onAddPointDeVente(pointDeVenteData)
-  }
+  // Soumettre les données
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+    setError("");
+
+    // Validation basique
+    if (
+      !formData.nom ||
+      !formData.adresse ||
+      !formData.telephone ||
+      !formData.email ||
+      !formData.responsable
+    ) {
+      setError("Veuillez remplir tous les champs obligatoires.");
+      setSubmitting(false);
+      return;
+    }
+
+    try {
+      let response;
+
+      if (initialData) {
+        // 🔄 Mise à jour d’un point de vente existant
+        response = await storeService.updateStore(initialData.id, formData);
+      } else {
+        // 🆕 Création d’un nouveau point de vente
+        response = await storeService.createStore(formData);
+      }
+
+      // Appeler le callback du parent pour rafraîchir la liste
+      onAddPointDeVente(response);
+      onClose();
+    } catch (err) {
+      console.error("Erreur API :", err);
+
+      if (err.response) {
+        setError(
+          `Erreur ${err.response.status} : ${
+            err.response.data?.message || "Une erreur est survenue"
+          }`
+        );
+      } else if (err.request) {
+        setError("Aucune réponse du serveur. Vérifiez votre connexion.");
+      } else {
+        setError(`Erreur : ${err.message}`);
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <Modal
@@ -48,10 +118,19 @@ const AddPointDeVenteModal = ({ isOpen, onClose, onAddPointDeVente, initialData 
       onClose={onClose}
       onSubmit={handleSubmit}
       title={initialData ? "Modifier le point de vente" : "Nouveau Point de vente"}
-      submitText={initialData ? "Modifier" : "Créer le point de vente"}
+      submitText={
+        submitting ? "Envoi..." : initialData ? "Modifier" : "Créer le point de vente"
+      }
+      disabled={submitting}
       size="md"
     >
       <div className="space-y-4">
+        {error && (
+          <div className="p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg">
+            {error}
+          </div>
+        )}
+
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Nom du point de vente *
@@ -59,11 +138,12 @@ const AddPointDeVenteModal = ({ isOpen, onClose, onAddPointDeVente, initialData 
           <input
             type="text"
             name="nom"
-            value={pointDeVenteData.nom}
+            value={formData.nom}
             onChange={handleInputChange}
             required
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#40514E] focus:border-[#40514E]"
+            disabled={submitting}
             placeholder="Nom du magasin"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#40514E] focus:border-[#40514E] disabled:bg-gray-100"
           />
         </div>
 
@@ -74,11 +154,12 @@ const AddPointDeVenteModal = ({ isOpen, onClose, onAddPointDeVente, initialData 
           <input
             type="text"
             name="adresse"
-            value={pointDeVenteData.adresse}
+            value={formData.adresse}
             onChange={handleInputChange}
             required
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#40514E] focus:border-[#40514E]"
+            disabled={submitting}
             placeholder="Adresse complète"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#40514E] focus:border-[#40514E] disabled:bg-gray-100"
           />
         </div>
 
@@ -90,11 +171,12 @@ const AddPointDeVenteModal = ({ isOpen, onClose, onAddPointDeVente, initialData 
             <input
               type="tel"
               name="telephone"
-              value={pointDeVenteData.telephone}
+              value={formData.telephone}
               onChange={handleInputChange}
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#40514E] focus:border-[#40514E]"
+              disabled={submitting}
               placeholder="+225 00 00 00 00"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#40514E] focus:border-[#40514E] disabled:bg-gray-100"
             />
           </div>
 
@@ -105,11 +187,12 @@ const AddPointDeVenteModal = ({ isOpen, onClose, onAddPointDeVente, initialData 
             <input
               type="email"
               name="email"
-              value={pointDeVenteData.email}
+              value={formData.email}
               onChange={handleInputChange}
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#40514E] focus:border-[#40514E]"
+              disabled={submitting}
               placeholder="email@exemple.com"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#40514E] focus:border-[#40514E] disabled:bg-gray-100"
             />
           </div>
         </div>
@@ -121,11 +204,12 @@ const AddPointDeVenteModal = ({ isOpen, onClose, onAddPointDeVente, initialData 
           <input
             type="text"
             name="responsable"
-            value={pointDeVenteData.responsable}
+            value={formData.responsable}
             onChange={handleInputChange}
             required
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#40514E] focus:border-[#40514E]"
+            disabled={submitting}
             placeholder="Nom du responsable"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#40514E] focus:border-[#40514E] disabled:bg-gray-100"
           />
         </div>
 
@@ -135,10 +219,11 @@ const AddPointDeVenteModal = ({ isOpen, onClose, onAddPointDeVente, initialData 
           </label>
           <select
             name="statut"
-            value={pointDeVenteData.statut}
+            value={formData.statut}
             onChange={handleInputChange}
             required
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#40514E] focus:border-[#40514E]"
+            disabled={submitting}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#40514E] focus:border-[#40514E] disabled:bg-gray-100"
           >
             <option value="Actif">Actif</option>
             <option value="En maintenance">En maintenance</option>
@@ -147,7 +232,7 @@ const AddPointDeVenteModal = ({ isOpen, onClose, onAddPointDeVente, initialData 
         </div>
       </div>
     </Modal>
-  )
-}
+  );
+};
 
-export default AddPointDeVenteModal
+export default AddPointDeVenteModal;
