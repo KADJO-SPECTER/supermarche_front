@@ -1,116 +1,156 @@
-import { useState } from 'react'
-import { MdEdit, MdDelete, MdAdd, MdInventory, MdSearch } from 'react-icons/md'
-import AddProductModal from '../components/AddProductModal'
+import { useEffect, useState } from "react";
+import { MdEdit, MdDelete, MdAdd, MdInventory, MdSearch } from "react-icons/md";
+import AddProductModal from "../components/AddProductModal";
+import { productService } from "../services/productService";
 
 const ProductsPage = () => {
-  const [searchTerm, setSearchTerm] = useState('')
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [editingProduct, setEditingProduct] = useState(null)
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState({
+    count: 0,
+    next: null,
+    previous: null,
+    results: [],
+  });
 
-  // Données mock pour les produits
-  const products = [
-    {
-      id: 1,
-      name: "iPhone 14 Pro",
-      category: "Électronique",
-      price: "899.99 XOF",
-      stock: 45,
-      status: "En stock",
-      sales: 156
-    },
-    {
-      id: 2,
-      name: "Samsung Galaxy S23",
-      category: "Électronique",
-      price: "799.99 XOF",
-      stock: 32,
-      status: "En stock",
-      sales: 89
-    },
-    {
-      id: 3,
-      name: "Canapé 3 places",
-      category: "Meubles",
-      price: "1,299.99 XOF",
-      stock: 8,
-      status: "Stock limité",
-      sales: 23
-    },
-    {
-      id: 4,
-      name: "T-shirt Cotton",
-      category: "Mode",
-      price: "24.99 XOF",
-      stock: 0,
-      status: "Rupture",
-      sales: 267
-    },
-    {
-      id: 5,
-      name: "Café Arabica",
-      category: "Épicerie",
-      price: "12.99 XOF",
-      stock: 124,
-      status: "En stock",
-      sales: 512
+  useEffect(() => {
+    const loadProductsData = async () => {
+      try {
+        const response = await productService.getProducts();
+        setData(response);
+        setProducts(response.results);
+      } catch (error) {
+        console.error("Erreur lors du chargement des données:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadProductsData();
+  }, []);
+
+  if (loading) {
+    return <div className="p-6">Chargement...</div>;
+  }
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Voulez-vous vraiment supprimer ce produit ?")) return;
+    try {
+      await productService.deleteProduct(id);
+    } catch (error) {
+      console.error("Erreur lors de la suppression : ", error);
+      alert("Une erreur est survenue lors de la suppression");
     }
-  ]
+  };
 
+  // Fonction pour formater le prix
+  const formatPrice = (priceString) => {
+    const number = parseFloat(priceString);
+    return new Intl.NumberFormat("fr-FR", {
+      style: "currency",
+      currency: "XOF",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(number);
+  };
+
+  // Calcul des statistiques basées sur les données réelles
   const stats = [
-    { title: "Total Produits", value: "1,248", change: "+12%", positive: true },
-    { title: "En Stock", value: "892", change: "+8%", positive: true },
-    { title: "Rupture de Stock", value: "45", change: "-3%", positive: false },
-    { title: "Catégories", value: "12", change: "+2", positive: true }
-  ]
+    {
+      title: "Total Produits",
+      value: data.count.toString(),
+      change: "+0%",
+      positive: true,
+    },
+    {
+      title: "Produits Actifs",
+      value: products.filter((p) => p.is_active).length.toString(),
+      change: "+0%",
+      positive: true,
+    },
+    {
+      title: "Stock Faible",
+      value: products
+        .filter((p) => p.quantity <= p.alert_threshold)
+        .length.toString(),
+      change: "+0%",
+      positive: false,
+    },
+    {
+      title: "Catégories",
+      value: [
+        ...new Set(products.map((p) => p.category_name)),
+      ].length.toString(),
+      change: "+0",
+      positive: true,
+    },
+  ];
 
-  const filteredProducts = products.filter(product =>
-    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.category.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const filteredProducts = products.filter(
+    (product) =>
+      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.category_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.supplier_name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'En stock': return 'bg-green-100 text-green-800'
-      case 'Stock limité': return 'bg-yellow-100 text-yellow-800'
-      case 'Rupture': return 'bg-red-100 text-red-800'
-      default: return 'bg-gray-100 text-gray-800'
+      case "En stock":
+        return "bg-green-100 text-green-800";
+      case "Stock limité":
+        return "bg-yellow-100 text-yellow-800";
+      case "Rupture":
+        return "bg-red-100 text-red-800";
+      default:
+        return "bg-gray-100 text-gray-800";
     }
-  }
+  };
+
+  const getStockStatus = (quantity, alertThreshold) => {
+    if (quantity === 0) return "Rupture";
+    if (quantity <= alertThreshold) return "Stock limité";
+    return "En stock";
+  };
 
   const handleOpenModal = (product = null) => {
-    setEditingProduct(product)
-    setIsModalOpen(true)
-  }
+    setEditingProduct(product);
+    setIsModalOpen(true);
+  };
 
   const handleCloseModal = () => {
-    setIsModalOpen(false)
-    setEditingProduct(null)
-  }
+    setIsModalOpen(false);
+    setEditingProduct(null);
+  };
 
   const handleAddProduct = (productData) => {
     if (editingProduct) {
       // Logique de modification
-      console.log('Modifier produit:', productData)
-      // Mettre à jour le produit dans la liste
+      console.log("Modifier produit:", productData);
     } else {
       // Logique d'ajout
-      console.log('Nouveau produit:', productData)
-      // Ajouter le produit à la liste
+      console.log("Nouveau produit:", productData);
     }
-    handleCloseModal()
-  }
+    handleCloseModal();
+  };
 
   return (
     <div className="space-y-6">
       {/* En-tête */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-[#40514E]">Gestion des Produits</h1>
-          <p className="text-gray-600">Gérez votre inventaire et suivez les performances</p>
+          <h1 className="text-2xl font-bold text-[#40514E]">
+            Gestion des Produits
+          </h1>
+          <p className="text-gray-600">
+            Gérez votre inventaire et suivez les performances
+          </p>
         </div>
-        <button 
+        <button
           onClick={() => handleOpenModal()}
-          style={{backgroundColor: "#40514E", border: "none"}} 
+          style={{ backgroundColor: "#40514E", border: "none" }}
           className="text-white px-4 py-2 rounded-lg hover:bg-[#2F3E3C] transition duration-200 flex items-center"
         >
           <MdAdd className="mr-2" />
@@ -124,10 +164,18 @@ const ProductsPage = () => {
           <div key={index} className="bg-white p-6 rounded-lg shadow">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-gray-500 text-sm font-medium">{stat.title}</h3>
+                <h3 className="text-gray-500 text-sm font-medium">
+                  {stat.title}
+                </h3>
                 <div className="flex items-baseline mt-1">
-                  <span className="text-2xl font-semibold text-gray-900">{stat.value}</span>
-                  <span className={`ml-2 text-sm font-medium ${stat.positive ? 'text-green-600' : 'text-red-600'}`}>
+                  <span className="text-2xl font-semibold text-gray-900">
+                    {stat.value}
+                  </span>
+                  <span
+                    className={`ml-2 text-sm font-medium ${
+                      stat.positive ? "text-green-600" : "text-red-600"
+                    }`}
+                  >
                     {stat.change}
                   </span>
                 </div>
@@ -153,16 +201,19 @@ const ProductsPage = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          
+
           <div className="flex gap-2 flex-wrap">
             <select className="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-[#40514E] focus:border-[#40514E]">
               <option>Toutes les catégories</option>
-              <option>Électronique</option>
-              <option>Épicerie</option>
-              <option>Meubles</option>
-              <option>Mode</option>
+              {[...new Set(products.map((p) => p.category_name))].map(
+                (category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                )
+              )}
             </select>
-            
+
             <select className="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-[#40514E] focus:border-[#40514E]">
               <option>Tous les statuts</option>
               <option>En stock</option>
@@ -184,13 +235,16 @@ const ProductsPage = () => {
                   Catégorie
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Fournisseur
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Prix
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Stock
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Ventes
+                  Seuil d'alerte
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Statut
@@ -209,36 +263,57 @@ const ProductsPage = () => {
                         {product.name.charAt(0)}
                       </div>
                       <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900">{product.name}</div>
+                        <div className="text-sm font-medium text-gray-900">
+                          {product.name}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {product.is_active ? "Actif" : "Inactif"}
+                        </div>
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {product.category}
+                    {product.category_name}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {product.supplier_name}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {product.price}
+                    {formatPrice(product.unit_price)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {product.stock}
+                    {product.quantity.toLocaleString()}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {product.sales}
+                    {product.alert_threshold.toLocaleString()}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(product.status)}`}>
-                      {product.status}
+                    <span
+                      className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(
+                        getStockStatus(
+                          product.quantity,
+                          product.alert_threshold
+                        )
+                      )}`}
+                    >
+                      {getStockStatus(
+                        product.quantity,
+                        product.alert_threshold
+                      )}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex space-x-2">
-                      <button 
+                      <button
                         onClick={() => handleOpenModal(product)}
                         className="text-[#40514E] hover:text-[#2F3E3C]"
                       >
                         <MdEdit className="w-5 h-5" />
                       </button>
-                      <button className="text-red-600 hover:text-red-900">
+                      <button
+                        onClick={() => handleDelete(product.id)}
+                        className="text-red-600 hover:text-red-900"
+                      >
                         <MdDelete className="w-5 h-5" />
                       </button>
                     </div>
@@ -252,17 +327,19 @@ const ProductsPage = () => {
         {/* Pagination */}
         <div className="mt-6 flex items-center justify-between">
           <div className="text-sm text-gray-500">
-            Affichage de <span className="font-medium">1</span> à <span className="font-medium">5</span> sur <span className="font-medium">1,248</span> produits
+            Affichage de <span className="font-medium">1</span> à{" "}
+            <span className="font-medium">{products.length}</span> sur{" "}
+            <span className="font-medium">{data.count}</span> produits
           </div>
           <div className="flex space-x-2">
-            <button className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-500 hover:bg-gray-50">
+            <button
+              className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-500 hover:bg-gray-50"
+              disabled={!data.previous}
+            >
               Précédent
             </button>
             <button className="px-3 py-1 border border-[#40514E] bg-[#40514E] text-white rounded-md text-sm font-medium">
               1
-            </button>
-            <button className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-500 hover:bg-gray-50">
-              2
             </button>
             <button className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-500 hover:bg-gray-50">
               Suivant
@@ -279,7 +356,7 @@ const ProductsPage = () => {
         initialData={editingProduct}
       />
     </div>
-  )
-}
+  );
+};
 
-export default ProductsPage
+export default ProductsPage;
