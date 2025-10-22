@@ -27,7 +27,7 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#6FCF97] py-12 px-4 sm:px-6 lg:px-8 w-screen">
+    <div className="min-h-screen flex items-center justify-center bg-[#F1F1F1] py-12 px-4 sm:px-6 lg:px-8 w-screen">
       <div className="max-w-md w-full">
         <div className="bg-white p-8 space-y-8">
           <div className="text-center">
@@ -84,6 +84,7 @@ const Login = () => {
               <button
                 type="submit"
                 disabled={loading}
+                style={{backgroundColor :"#40514E"}}
                 className="group relative w-full bg-[#40514E] flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white hover:bg-[#2d3a38] disabled:opacity-50"
               >
                 {loading ? 'Connexion...' : 'Se connecter'}
